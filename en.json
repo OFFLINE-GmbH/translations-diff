@@ -1,0 +1,9 @@
+{
+    "login": {
+        "username": "Username",
+        "password": "Password",
+        "messages": {
+          "invalid_credentials": "Invalid credentials"
+        }
+    },
+}
