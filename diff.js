@@ -5,92 +5,87 @@ var fs = require('fs');
 
 // global variables
 var save = false;
-var reference_data = null;
-var check_index = 0;
-var check_data = [];
-var check_filenames = [];
-var missing_paths = [];
+var referenceData = null;
+var checkIndex = 0;
+var checkData = [];
+var checkFilenames = [];
+var missingPaths = [];
 
 // Helper functions
 
 // Extending arrays by contains
 // (https://stackoverflow.com/questions/237104/how-do-i-check-if-an-array-includes-an-object-in-javascript)
-Array.prototype.contains = function(obj) {
-    var i = this.length;
-    while (i--) {
-        if (this[i] === obj) {
-            return true;
-        }
-    }
-    return false;
+function arrayContains(array,value){
+  var i = array.length;
+  while (i--) {
+      if (array[i] === value) {
+          return true;
+      }
+  }
+  return false;
 }
 
 // Extending strings by replaceAll
 // (https://stackoverflow.com/questions/1144783/how-to-replace-all-occurrences-of-a-string-in-javascript)
-String.prototype.replaceAll = function(search, replacement) {
-    var target = this;
-    return target.replace(new RegExp(search, 'g'), replacement);
-};
+function stringReplaceAll(string, search, replacement){
+  return string.replace(new RegExp(search, 'g'), replacement);
+}
 
-/**
-* Collects every unique keys of a given object with his full hierarchy
-* This function will be called recoursively.
-* path: base path of the given current object.
-* object: the given object
-* keys: a list of already collected keys
-*/
-collectKeys = function (path,object,keys){
+
+// Collects every unique keys of a given object with his full hierarchy
+// This function will be called recoursively.
+// path: base path of the given current object.
+// object: the given object
+// keys: a list of already collected keys
+function collectKeys(path,object,keys){
   for (var key in object){
     if (typeof object[key] === 'object'){
-      collectKeys(path+"."+key, object[key], keys);
+      collectKeys(path+'.'+key, object[key], keys);
     }
     else{
       // value found
-      var current_path = path+"."+key;
-      current_path = current_path.substring(1); // remove leading dot
-      keys.push(current_path);
+      var currentPath = path+'.'+key;
+      currentPath = currentPath.substring(1); // remove leading dot
+      keys.push(currentPath);
     }
   }
 }
 
-/**
-* checks, if an object has a value other than an object on a given path.
-* object: the object to check
-* path: the pat to the value, dot separated. eg. path.to.value
-* returns: boolean value
-*/
-containsPath = function(obj, path){
+
+// checks, if an object has a value other than an object on a given path.
+// object: the object to check
+// path: the pat to the value, dot separated. eg. path.to.value
+// returns: boolean value
+function containsPath(obj, path){
   return getValueByPath(obj,path) != null;
 }
 
-/**
-* Finds String values in a source array of strings, that are not present in the
-* ref array of strings.
-* src: an array of strings to look for missing values
-* ref: an array of strings as reference
-* returns: a list of missing values
-*/
-compareValues = function(src,ref){
+
+// Finds String values in a source array of strings, that are not present in the
+// ref array of strings.
+// src: an array of strings to look for missing values
+// ref: an array of strings as reference
+// returns: a list of missing values
+ function compareValues(src,ref){
   var result = [];
-  ref.forEach(function (val, index, array) {
-    if (!src.contains(val)){
+  ref.forEach(function handle(val, index, array) {
+    if (!arrayContains(src,val)){
       result.push(val);
     }
   });
   return result;
 }
 
-/**
-* Returns the value of an object field, based on its path of null,
-* if the field does not exist or is an object as itself.
-* obj: the object containing the fields
-* path: the path to the field
-* returns: the value of the field or null, if the field does not exist or is an object.
-*/
-getValueByPath = function(obj, path){
+
+// Returns the value of an object field, based on its path of null,
+// if the field does not exist or is an object as itself.
+// obj: the object containing the fields
+// path: the path to the field
+// returns: the value of the field or null, if the field does not exist or is an object.
+function getValueByPath (obj, path){
   var parts = path.split('.');
   var o = JSON.parse(JSON.stringify(obj)); // copy object
-  parts.forEach(function (val, index, array){
+  parts.forEach(function handle(val, index, array){
       if (!o.hasOwnProperty(val)){
         return null;
       }
@@ -107,69 +102,75 @@ getValueByPath = function(obj, path){
 }
 
 
+// Prints the paths given in an array
+// paths: the paths to print
+function printPaths(paths){
+  paths.forEach(function handle(pVal, pIndex, pArray) {
+    console.log('- '+pVal);
+  });
+}
+
 // determine reference data and options
 if (process.argv.length > 2){
-   if (process.argv[2] == "--save"){
+   if (process.argv[2] === '--save'){
      save = true;
      if (process.argv.length > 3){
-       reference_data = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
-       check_index = 4;
+       referenceData = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
+       checkIndex = 4;
      }
    }
    else{
      if (process.argv.length > 2){
-       reference_data = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
-       check_index = 3;
+       referenceData = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+       checkIndex = 3;
      }
    }
 }
 
 // determine check data
-process.argv.forEach(function (val, index, array) {
-  if (index>=check_index){
-    var check_item = JSON.parse(fs.readFileSync(process.argv[index], 'utf8'));
-    check_data.push(check_item);
-    check_filenames.push(process.argv[index]);
+process.argv.forEach(function handle(val, index, array) {
+  if (index>=checkIndex){
+    var checkItem = JSON.parse(fs.readFileSync(process.argv[index], 'utf8'));
+    checkData.push(checkItem);
+    checkFilenames.push(process.argv[index]);
   }
 });
 
 // read reference data
-var ref_keys = [];
-collectKeys("",reference_data,ref_keys);
+var refKeys = [];
+collectKeys('',referenceData,refKeys);
 
 // determine missing keys
-check_data.forEach(function (val, index, array) {
-  var check_keys = [];
-  collectKeys("",val,check_keys);
-  var missing = compareValues(check_keys,ref_keys);
-  missing_paths.push(missing);
+checkData.forEach(function handle(val, index, array) {
+  var checkKeys = [];
+  collectKeys('',val,checkKeys);
+  var missing = compareValues(checkKeys,refKeys);
+  missingPaths.push(missing);
 });
 
 // print
-check_filenames.forEach(function (val, index, array) {
-  console.log("missing in "+val+":");
+checkFilenames.forEach(function handle(val, index, array) {
+  console.log('missing in '+val+':');
   console.log();
-  var current_missing_paths = missing_paths[index];
-  current_missing_paths.forEach(function (pVal, pIndex, pArray) {
-    console.log("- "+pVal);
-  });
+  var currentMissingPaths = missingPaths[index];
+  printPaths(currentMissingPaths);
   console.log();
 });
 
 // save to csv-files
 if (save){
-  check_filenames.forEach(function (val, index, array){
-    var filename = val.split('.')[0]+".missing.csv";
+  checkFilenames.forEach(function handle(val, index, array){
+    var filename = val.split('.')[0]+'.missing.csv';
     // TODO more generic filename creation???
     // TODO use csv-writer component
-    var current_missing_paths = missing_paths[index];
-    var output = "";
+    var currentMissingPaths = missingPaths[index];
+    var output = '';
 
-    current_missing_paths.forEach(function (pVal, pIndex, pArray) {
-      var ref_value = getValueByPath(reference_data,pVal);
-      ref_value = ref_value.replaceAll(",","\\,"); // not necessary, when using csv-writer.
+    currentMissingPaths.forEach(function handle(pVal, pIndex, pArray) {
+      var refValue = getValueByPath(referenceData,pVal);
+      refValue = stringReplaceAll(refValue, ',', '\\,'); // not necessary, when using csv-writer.
       // TODO ^ there are certainly more cases!
-      output = output + pVal + "," + ref_value +"\n";
+      output = output + pVal + ',' + refValue +'\n';
     });
 
     fs.writeFile(filename, output, function(err) {
